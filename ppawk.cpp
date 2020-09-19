@@ -96,7 +96,7 @@ void run_escape() {
 	putchar(bs);
 	while (char nxt = next()) {
 		if (nxt != bs) {
-			if (lvl & 1) {
+			if (lvl % 2 == 0) {
 				give_back(nxt);
 			} else {
 				putchar(nxt);
