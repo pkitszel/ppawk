@@ -16,6 +16,8 @@ char next() {
 
 void give_back(char x) { ungetc(x, stdin); }
 
+void run_escape();
+
 void run_to_nl() {
 	while (char nxt = next()) {
 		putchar(nxt);
@@ -32,6 +34,21 @@ void run_comment() {
 	run_to_nl();
 }
 
+void run_string() {
+	set_color(6);
+	putchar('"');
+	while (char nxt = next()) {
+		if (nxt == '\\') {
+			run_escape();
+			continue;
+		}
+		putchar(nxt);
+		if (nxt == '"') {
+			break;
+		}
+	}
+}
+
 void run_action() {
 	set_color(4); // todo =10 with 16 colors
 	putchar('{');
@@ -44,7 +61,12 @@ void run_action() {
 			putchar('}');
 			break;
 		}
-		putchar(nxt);
+		if (nxt == '"') {
+			run_string();
+			set_color(3); // hack, todo: proper color stack
+		} else {
+			putchar(nxt);
+		}
 	}
 }
 
