@@ -34,8 +34,10 @@ void run_action() {
 	set_color(4); // todo =10 with 16 colors
 	putchar('{');
 	set_color(3);
+	int lvl = 1;
 	while (char nxt = next()) {
-		if (nxt == '}') {
+		lvl += (nxt == '{') - (nxt == '}');
+		if (!lvl) {
 			set_color(4); // todo =10 with 16 colors
 			putchar('}');
 			break;
