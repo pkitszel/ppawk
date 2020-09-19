@@ -14,6 +14,8 @@ char next() {
 	return x == EOF ? 0 : x;
 }
 
+void give_back(char x) { ungetc(x, stdin); }
+
 void run_to_nl() {
 	while (char nxt = next()) {
 		putchar(nxt);
@@ -66,12 +68,46 @@ void run_rule(char first) {
 	reset_color();
 }
 
+void run_escape() {
+	int lvl = 1;
+	const char bs = '\\';
+	putchar(bs);
+	while (char nxt = next()) {
+		if (nxt != bs) {
+			if (lvl & 1) {
+				give_back(nxt);
+			} else {
+				putchar(nxt);
+			}
+			break;
+		}
+		putchar(bs);
+		++lvl;
+	}
+}
+
+void run_regex() {
+	set_color(5);
+	putchar('/');
+	while (char nxt = next()) {
+		if (nxt == '\\') {
+			run_escape();
+			continue;
+		}
+		putchar(nxt);
+		if (nxt == '/') {
+			reset_color(); // todo: pop color from stack
+			break;
+		}
+	}
+}
+
 void run() {
 	while (char nxt = next()) {
 		switch (nxt) {
-		case EOF: break;
 		case '#': run_comment(); continue;
 		case '\n': putchar(nxt); continue;
+		case '/': run_regex(); continue;
 		default:
 			run_rule(nxt); continue;
 			//~ reset_color(); putchar(nxt); continue;
