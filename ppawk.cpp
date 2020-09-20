@@ -1,4 +1,5 @@
-#include "/home/przemek/downloads/def.h"
+#include <cstdio>
+#include <cstdlib>
 
 #define die(str) ({ perror(str); int rc = __LINE__ % 100; rc += 101 * !rc; exit(rc); 0;})
 
