@@ -1,0 +1,1 @@
+b /a/+0/2 {print}   # not a regex (divide by zero)

@@ -1,0 +1,1 @@
+{print //}          # prints 1, equiv to ($0 ~ //)

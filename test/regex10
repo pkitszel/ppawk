@@ -1,0 +1,1 @@
+/*/ { print "*/" }  # awk is not C
