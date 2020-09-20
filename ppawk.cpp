@@ -26,13 +26,15 @@ char2fun_t &c2f(char x) {
 void run_escape();
 void run_regex();
 
-void run_to_nl() {
-	while (char nxt = next()) {
-		putchar(nxt);
-		if (nxt == '\n') {
+char run_to_nl(char to = 0) {
+	char nxt;
+	while ((nxt = next())) {
+		if (nxt == to || nxt == '\n') {
 			break;
 		}
+		putchar(nxt);
 	}
+	return nxt;
 }
 
 void run_comment() {
@@ -40,6 +42,7 @@ void run_comment() {
 	set_color(nxt == '!' ? 1 : 8);
 	printf("#%c", nxt);
 	run_to_nl();
+	putchar('\n');
 }
 
 void run_string() {
@@ -116,6 +119,20 @@ void run_regex() {
 		if (nxt == '\\') {
 			run_escape();
 			continue;
+		}
+		if (nxt == '[') {
+			set_color(4);
+			putchar(nxt);
+			set_color(5);
+			nxt = run_to_nl(']');
+			if (nxt == ']') {
+				set_color(4);
+				putchar(nxt);
+				set_color(5);
+				continue;
+			} else if (!nxt) {
+				break;
+			}
 		}
 		putchar(nxt);
 		if (nxt == '/') {
