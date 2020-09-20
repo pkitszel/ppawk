@@ -17,6 +17,7 @@ char next() {
 void give_back(char x) { ungetc(x, stdin); }
 
 void run_escape();
+void run_regex();
 
 void run_to_nl() {
 	while (char nxt = next()) {
@@ -70,8 +71,14 @@ void run_action() {
 	}
 }
 
-void run_to_action() {
+void run_rule() {
+	set_color(2);
 	while (char nxt = next()) {
+		if (nxt == '/') {
+			run_regex();
+			set_color(2); // hack, todo: proper color stack
+			continue;
+		}
 		if (nxt == '{') {
 			run_action();
 			break;
@@ -81,12 +88,6 @@ void run_to_action() {
 			break;
 		}
 	}
-}
-
-void run_rule(char first) {
-	set_color(2);
-	putchar(first);
-	run_to_action();
 	reset_color();
 }
 
@@ -118,7 +119,6 @@ void run_regex() {
 		}
 		putchar(nxt);
 		if (nxt == '/') {
-			reset_color(); // todo: pop color from stack
 			break;
 		}
 	}
@@ -131,8 +131,9 @@ void run() {
 		case '\n': putchar(nxt); continue;
 		case '/': run_regex(); continue;
 		default:
-			run_rule(nxt); continue;
-			//~ reset_color(); putchar(nxt); continue;
+			give_back(nxt);
+			run_rule();
+			continue;
 		}
 	}
 	reset_color();
