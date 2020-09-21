@@ -141,6 +141,33 @@ void run_escape() {
 	}
 }
 
+void run_bracket() {
+	{ with_color 4; putchar('['); }
+	int inside = 0, neg = 0;
+	with_color 5;
+	for (char nxt; (nxt = next()); ++inside) {
+		if (nxt == '^' && inside == 0) {
+			with_color 4;
+			putchar(nxt);
+			neg = 1;
+			continue;
+		}
+		if (nxt == ']') {
+			if (inside == neg) {
+				putchar(nxt);
+				continue;
+			}
+			with_color 4;
+			putchar(nxt);
+			break;
+		}
+		putchar(nxt);
+		if (nxt == '\n') {
+			break;
+		}
+	}
+}
+
 void run_regex() {
 	with_color 5;
 	putchar('/');
@@ -150,18 +177,8 @@ void run_regex() {
 			continue;
 		}
 		if (nxt == '[') {
-			{
-				with_color 4;
-				putchar(nxt);
-			}
-			nxt = run_to_nl(']');
-			if (nxt == ']') {
-				with_color 4;
-				putchar(nxt);
-				continue;
-			} else if (!nxt) {
-				break;
-			}
+			run_bracket();
+			continue;
 		}
 		putchar(nxt);
 		if (nxt == '/') {
