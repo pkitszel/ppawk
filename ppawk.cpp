@@ -1,6 +1,11 @@
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <sstream>
 #include <stack>
+#include <string>
 using namespace std;
 
 #define die(str) ({ perror(str); int rc = __LINE__ % 100; rc += 101 * !rc; exit(rc); 0;})
@@ -38,12 +43,61 @@ stack<int> with_color::s;
 #define PASTE(a,b) PASTE_HELPER(a,b)
 #define with_color with_color PASTE(dummy_with_color, __LINE__) =
 
+string the_last_chars;
+
+string last_word() {
+	istringstream iss(the_last_chars);
+	while (iss >> the_last_chars) {
+	}
+	return the_last_chars;
+}
+
+bool is_div_infix() {
+	char push = ' ';
+	if (!the_last_chars.empty()) {
+		push = the_last_chars.back();
+		the_last_chars.pop_back();
+	}
+	bool ret = false;
+	string lw = last_word();
+	char second = lw.empty() ? ' ' : lw.back();
+	char first = lw.size() <= 1 ? ' ' : lw[lw.size()-2];
+	if (first == second && (first == '-' || first == '+')) {
+		ret = true;
+	} else if (second == '"' || second == ')' || second == ']' || second == '.') {
+		ret = true;
+	} else if (isalnum(second)) {
+		static string noninfix[] = {
+			"print",
+			"printf",
+			";print",
+			";printf",
+			"{print",
+			"{printf",
+			"}print",
+			"}printf",
+		};
+		ret = find(noninfix, noninfix+8, lw) == noninfix+8;
+	}
+	the_last_chars += ' ';
+	the_last_chars += push;
+	return ret;
+}
+
 char next() {
 	char x = (char) getchar();
+	if (x == '\n') {
+		the_last_chars.clear();
+	} else {
+		the_last_chars.push_back(x);
+	}
 	return x == EOF ? 0 : x;
 }
 
-void give_back(char x) { ungetc(x, stdin); }
+void give_back(char x) {
+	ungetc(x, stdin);
+	the_last_chars.pop_back();
+}
 
 typedef void (* char2fun_t)();
 char2fun_t &c2f(char x) {
@@ -90,6 +144,10 @@ void run_string() {
 
 void run_common(char nxt) {
 	if (auto f = c2f(nxt)) {
+		if (f == run_regex && is_div_infix()) {
+			putchar('/');
+			return;
+		}
 		f();
 		return;
 	}
