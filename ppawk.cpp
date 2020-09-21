@@ -1,5 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
+#include <stack>
+using namespace std;
 
 #define die(str) ({ perror(str); int rc = __LINE__ % 100; rc += 101 * !rc; exit(rc); 0;})
 
@@ -9,6 +11,32 @@ void set_color(int color) {
 	color += color < 8 ? 30 : 90-8;
 	printf("\e[0;%dm", color);
 }
+
+struct with_color {
+	static stack<int> s;
+
+	with_color(int x) {
+		s.push(x);
+		print();
+	}
+
+	~with_color() {
+		s.pop();
+		print();
+	}
+
+	void print() {
+		if (s.empty()) {
+			reset_color();
+		} else {
+			set_color(s.top());
+		}
+	}
+};
+stack<int> with_color::s;
+#define PASTE_HELPER(a,b) a ## b
+#define PASTE(a,b) PASTE_HELPER(a,b)
+#define with_color with_color PASTE(dummy_with_color, __LINE__) =
 
 char next() {
 	char x = (char) getchar();
@@ -39,14 +67,14 @@ char run_to_nl(char to = 0) {
 
 void run_comment() {
 	char nxt = next();
-	set_color(nxt == '!' ? 1 : 8);
+	with_color(nxt == '!' ? 1 : 8);
 	printf("#%c", nxt);
 	run_to_nl();
 	putchar('\n');
 }
 
 void run_string() {
-	set_color(6);
+	with_color 6;
 	putchar('"');
 	while (char nxt = next()) {
 		if (nxt == '\\') {
@@ -70,28 +98,29 @@ void run_common(char nxt) {
 
 void run_action() {
 	c2f('{') = nullptr;
-	set_color(4); // todo =10 with 16 colors
-	putchar('{');
+	with_color 3;
+	{
+		with_color 4; // todo =10 with 16 colors
+		putchar('{');
+	}
 	int lvl = 1;
 	while (char nxt = next()) {
 		lvl += (nxt == '{') - (nxt == '}');
 		if (!lvl) {
-			set_color(4); // todo =10 with 16 colors
+			with_color 4; // todo =10 with 16 colors
 			putchar('}');
 			break;
 		}
-		set_color(3);
 		run_common(nxt);
 	}
 }
 
 void run() {
+	with_color 2;
 	while (char nxt = next()) {
-		set_color(2);
 		c2f('{') = run_action;
 		run_common(nxt);
 	}
-	reset_color();
 }
 
 void run_escape() {
@@ -113,7 +142,7 @@ void run_escape() {
 }
 
 void run_regex() {
-	set_color(5);
+	with_color 5;
 	putchar('/');
 	while (char nxt = next()) {
 		if (nxt == '\\') {
@@ -121,14 +150,14 @@ void run_regex() {
 			continue;
 		}
 		if (nxt == '[') {
-			set_color(4);
-			putchar(nxt);
-			set_color(5);
+			{
+				with_color 4;
+				putchar(nxt);
+			}
 			nxt = run_to_nl(']');
 			if (nxt == ']') {
-				set_color(4);
+				with_color 4;
 				putchar(nxt);
-				set_color(5);
 				continue;
 			} else if (!nxt) {
 				break;
