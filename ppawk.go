@@ -8,7 +8,44 @@ import (
 	"unicode"
 )
 
-func kind(x rune) rune {
+type kind uint8
+
+const (
+	PLAIN kind = iota
+	SHEBANG
+	COMMENT
+	KEYWORD
+)
+
+var color = map[kind]string{
+	PLAIN:   "\033[0m",
+	KEYWORD: "\033[0;32m",
+}
+
+type parslet struct {
+	what kind
+	text string
+}
+
+func parse(in <-chan string) <-chan parslet {
+	out := make(chan parslet)
+	go parse_run(in, out)
+	return out
+}
+
+func parse_run(in <-chan string, out chan parslet) {
+	for t := range in {
+		var k kind
+		switch {
+		case t == "print":
+			k = KEYWORD
+		}
+		out <- parslet{k, t}
+	}
+	close(out)
+}
+
+func kind_lex(x rune) rune {
 	switch {
 	case x == '_' || x == '\n':
 		return x
@@ -32,14 +69,14 @@ func lex(in <-chan rune) <-chan string {
 	go func() {
 		r := <-in
 		cur := string(r)
-		k := kind(r)
+		k := kind_lex(r)
 		for r := range in {
-			if kind(r) == k {
+			if kind_lex(r) == k {
 				cur += string(r)
 			} else {
 				ch <- cur
 				cur = string(r)
-				k = kind(r)
+				k = kind_lex(r)
 			}
 		}
 		ch <- cur
@@ -81,11 +118,27 @@ func print_chan(in <-chan string) {
 	}
 }
 
+func color_parslets(in <-chan parslet) <-chan string {
+	ch := make(chan string)
+	go func() {
+		plain := color[PLAIN]
+		for p := range in {
+			c, ok := color[p.what]
+			if !ok {
+				c = plain
+			}
+			ch <- c + p.text + plain
+		}
+		close(ch)
+	}()
+	return ch
+}
+
 func main() {
 	in, err := make_in_chan(os.Args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	print_chan(lex(in))
+	print_chan(color_parslets(parse(lex(in))))
 }
