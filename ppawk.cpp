@@ -10,39 +10,6 @@ using namespace std;
 
 #define die(str) ({ perror(str); int rc = __LINE__ % 100; rc += 101 * !rc; exit(rc); 0;})
 
-void reset_color() { printf("\e[0m"); }
-
-void set_color(int color) {
-	color += color < 8 ? 30 : 90-8;
-	printf("\e[0;%dm", color);
-}
-
-struct with_color {
-	static stack<int> s;
-
-	with_color(int x) {
-		s.push(x);
-		print();
-	}
-
-	~with_color() {
-		s.pop();
-		print();
-	}
-
-	void print() {
-		if (s.empty()) {
-			reset_color();
-		} else {
-			set_color(s.top());
-		}
-	}
-};
-stack<int> with_color::s;
-#define PASTE_HELPER(a,b) a ## b
-#define PASTE(a,b) PASTE_HELPER(a,b)
-#define with_color with_color PASTE(dummy_with_color, __LINE__) =
-
 struct lexem : std::string {
 	lexem() {}
 	lexem(char c) :std::string(1, c) {}
@@ -53,8 +20,36 @@ struct lexem : std::string {
 	bool operator==(char c) const { return *this == string(1, c); }
 };
 
-void print(const lexem &l) {
-	printf("%s", l.c_str());
+struct color_stack {
+	static stack<int> s;
+
+	color_stack(int c) { s.push(c); }
+	~color_stack() { s.pop(); }
+
+	static void ensure_color() {
+		static int prev = -1;
+		int color = s.empty() ? -1 : s.top();
+		if (prev == color) {
+			return;
+		}
+		prev = color;
+		if (color == -1) {
+			printf("\e[0m");
+		} else {
+			color += color < 8 ? 30 : 90-8;
+			printf("\e[0;%dm", color);
+		}
+	}
+};
+stack<int> color_stack::s;
+
+#define PASTE_HELPER(a,b) a ## b
+#define PASTE(a,b) PASTE_HELPER(a,b)
+#define with_color color_stack PASTE(dummy_with_color, __LINE__) =
+
+static void print(const lexem &lx) {
+	color_stack::ensure_color();
+	printf("%s", lx.c_str());
 }
 
 struct lexer {
@@ -145,7 +140,7 @@ void run_regex();
 void run_comment() {
 	lexem nxt = lx.next();
 	with_color(nxt == '!' ? 1 : 8);
-	printf("#%s", nxt.c_str());
+	print("#" + nxt);
 	while (lexem nxt = lx.next()) {
 		print(nxt);
 		if (nxt == '\n') {
@@ -156,7 +151,7 @@ void run_comment() {
 
 void run_string() {
 	with_color 6;
-	putchar('"');
+	print('"');
 	while (lexem nxt = lx.next()) {
 		if (nxt == '\\') {
 			run_escape();
@@ -172,7 +167,7 @@ void run_string() {
 void run_common(lexem nxt) {
 	if (auto f = c2f(nxt)) {
 		if (f == run_regex && lx.is_div_infix()) {
-			putchar('/');
+			print('/');
 			return;
 		}
 		f();
@@ -186,14 +181,14 @@ void run_action() {
 	with_color 3;
 	{
 		with_color 4; // todo =10 with 16 colors
-		putchar('{');
+		print('{');
 	}
 	int lvl = 1;
 	while (lexem nxt = lx.next()) {
 		lvl += (nxt == '{') - (nxt == '}');
 		if (!lvl) {
 			with_color 4; // todo =10 with 16 colors
-			putchar('}');
+			print('}');
 			break;
 		}
 		run_common(nxt);
@@ -209,12 +204,12 @@ void run() {
 }
 
 void run_escape() {
-	putchar('\\');
+	print('\\');
 	print(lx.next());
 }
 
 void run_bracket() {
-	{ with_color 4; putchar('['); }
+	{ with_color 4; print('['); }
 	int inside = 0, neg = 0;
 	with_color 5;
 	for (lexem nxt; (nxt = lx.next()); ++inside) {
@@ -242,7 +237,7 @@ void run_bracket() {
 
 void run_regex() {
 	with_color 5;
-	putchar('/');
+	print('/');
 	while (lexem nxt = lx.next()) {
 		if (nxt == '\\') {
 			run_escape();
