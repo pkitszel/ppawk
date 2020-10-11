@@ -43,115 +43,142 @@ stack<int> with_color::s;
 #define PASTE(a,b) PASTE_HELPER(a,b)
 #define with_color with_color PASTE(dummy_with_color, __LINE__) =
 
-string the_last_chars;
+struct lexem : std::string {
+	lexem() {}
+	lexem(char c) :std::string(1, c) {}
+	lexem(const std::string &s) :std::string(s) {}
+	lexem(const char *s) :std::string(s) {}
+	explicit operator bool() const noexcept { return !empty(); }
+	char first() const { return at(0); }
+	bool operator==(char c) const { return *this == string(1, c); }
+};
 
-string last_word() {
-	istringstream iss(the_last_chars);
-	while (iss >> the_last_chars) {
-	}
-	return the_last_chars;
+void print(const lexem &l) {
+	printf("%s", l.c_str());
 }
 
-bool is_div_infix() {
-	char push = ' ';
-	if (!the_last_chars.empty()) {
-		push = the_last_chars.back();
-		the_last_chars.pop_back();
+struct lexer {
+	lexem next() {
+		char first = next_char();
+		string tok(1, first);
+		if (isnameletter(first)) {
+			while (char x = next_char()) {
+				if (!isnameletter(x)) {
+					give_back(x);
+					break;
+				}
+				tok += x;
+			}
+		} else if (isplusorminus(first)) {
+			while (char x = next_char()) {
+				if (x != first) {
+					give_back(x);
+					break;
+				}
+				tok += x;
+			}
+		} else if (!first) {
+			tok.clear(); // EOF
+		}
+		if (!isspace(curr[0]) || curr[0] == '\n') {
+			prev = curr;
+		}
+		curr = tok;
+		return tok;
 	}
-	bool ret = false;
-	string lw = last_word();
-	char second = lw.empty() ? ' ' : lw.back();
-	char first = lw.size() <= 1 ? ' ' : lw[lw.size()-2];
-	if (first == second && (first == '-' || first == '+')) {
-		ret = true;
-	} else if (second == '"' || second == ')' || second == ']' || second == '.') {
-		ret = true;
-	} else if (isalnum(second)) {
-		static string noninfix[] = {
-			"print",
-			"printf",
-			";print",
-			";printf",
-			"{print",
-			"{printf",
-			"}print",
-			"}printf",
-		};
-		ret = find(noninfix, noninfix+8, lw) == noninfix+8;
-	}
-	the_last_chars += ' ';
-	the_last_chars += push;
-	return ret;
-}
 
-char next() {
-	char x = (char) getchar();
-	if (x == '\n') {
-		the_last_chars.clear();
-	} else {
-		the_last_chars.push_back(x);
+	bool is_div_infix() const {
+		if (prev.empty()) {
+			return false;
+		}
+		char first = prev[0];
+		if (suggests_infix(first)) {
+			return true;
+		}
+		if (isplusorminus(first)) {
+			return prev.size() % 2 == 0;
+		}
+		if (prev == "print" || prev == "printf") {
+			return false;
+		}
+		return isnameletter(first);
 	}
-	return x == EOF ? 0 : x;
-}
 
-void give_back(char x) {
-	ungetc(x, stdin);
-	the_last_chars.pop_back();
-}
+private:
+	string prev, curr;
+
+	char next_char() {
+		char x = (char) getchar();
+		return x == EOF ? 0 : x;
+	}
+
+	void give_back(char x) {
+		ungetc(x, stdin);
+	}
+
+	static bool isnameletter(char x) {
+		return x == '_' || isalnum(x);
+	}
+
+	static bool isplusorminus(char x) {
+		return x == '+' || x == '-';
+	}
+
+	static bool suggests_infix(char x) {
+		return x == '\"' || x == ')' || x == '.' || x == ']';
+	}
+};
+lexer lx;
 
 typedef void (* char2fun_t)();
-char2fun_t &c2f(char x) {
+char2fun_t &c2f(lexem x) {
 	static char2fun_t tab[256];
-	return tab[(unsigned char) x];
+	if (x.size() == 1) {
+		return tab[(unsigned char) x.first()];
+	}
+	return tab[0];
 }
 
 void run_escape();
 void run_regex();
 
-char run_to_nl(char to = 0) {
-	char nxt;
-	while ((nxt = next())) {
-		if (nxt == to || nxt == '\n') {
+void run_comment() {
+	lexem nxt = lx.next();
+	with_color(nxt == '!' ? 1 : 8);
+	printf("#%s", nxt.c_str());
+	while (lexem nxt = lx.next()) {
+		print(nxt);
+		if (nxt == '\n') {
 			break;
 		}
-		putchar(nxt);
 	}
-	return nxt;
-}
-
-void run_comment() {
-	char nxt = next();
-	with_color(nxt == '!' ? 1 : 8);
-	printf("#%c", nxt);
-	run_to_nl();
-	putchar('\n');
 }
 
 void run_string() {
 	with_color 6;
 	putchar('"');
-	while (char nxt = next()) {
+	while (lexem nxt = lx.next()) {
 		if (nxt == '\\') {
 			run_escape();
 			continue;
 		}
-		putchar(nxt);
+		print(nxt);
 		if (nxt == '"') {
 			break;
 		}
 	}
 }
 
-void run_common(char nxt) {
+void run_common(lexem nxt) {
 	if (auto f = c2f(nxt)) {
-		if (f == run_regex && is_div_infix()) {
+		if (f == run_regex && lx.is_div_infix()) {
 			putchar('/');
 			return;
 		}
 		f();
 		return;
 	}
-	putchar(nxt);
+	print(nxt);
 }
 
 void run_action() {
@@ -162,7 +189,7 @@ void run_action() {
 		putchar('{');
 	}
 	int lvl = 1;
-	while (char nxt = next()) {
+	while (lexem nxt = lx.next()) {
 		lvl += (nxt == '{') - (nxt == '}');
 		if (!lvl) {
 			with_color 4; // todo =10 with 16 colors
@@ -175,51 +202,38 @@ void run_action() {
 
 void run() {
 	with_color 2;
-	while (char nxt = next()) {
+	while (lexem nxt = lx.next()) {
 		c2f('{') = run_action;
 		run_common(nxt);
 	}
 }
 
 void run_escape() {
-	int lvl = 1;
-	const char bs = '\\';
-	putchar(bs);
-	while (char nxt = next()) {
-		if (nxt != bs) {
-			if (lvl % 2 == 0) {
-				give_back(nxt);
-			} else {
-				putchar(nxt);
-			}
-			break;
-		}
-		putchar(bs);
-		++lvl;
-	}
+	putchar('\\');
+	print(lx.next());
 }
 
 void run_bracket() {
 	{ with_color 4; putchar('['); }
 	int inside = 0, neg = 0;
 	with_color 5;
-	for (char nxt; (nxt = next()); ++inside) {
+	for (lexem nxt; (nxt = lx.next()); ++inside) {
 		if (nxt == '^' && inside == 0) {
 			with_color 4;
-			putchar(nxt);
+			print(nxt);
 			neg = 1;
 			continue;
 		}
 		if (nxt == ']') {
 			if (inside == neg) {
-				putchar(nxt);
+				print(nxt);
 				continue;
 			}
 			with_color 4;
-			putchar(nxt);
+			print(nxt);
 			break;
 		}
-		putchar(nxt);
+		print(nxt);
 		if (nxt == '\n') {
 			break;
 		}
@@ -229,7 +243,7 @@ void run_bracket() {
 void run_regex() {
 	with_color 5;
 	putchar('/');
-	while (char nxt = next()) {
+	while (lexem nxt = lx.next()) {
 		if (nxt == '\\') {
 			run_escape();
 			continue;
@@ -238,7 +252,7 @@ void run_regex() {
 			run_bracket();
 			continue;
 		}
-		putchar(nxt);
+		print(nxt);
 		if (nxt == '/') {
 			break;
 		}
