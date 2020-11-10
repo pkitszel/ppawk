@@ -3,9 +3,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <sstream>
 #include <stack>
 #include <string>
+#include <vector>
 using namespace std;
 
 #define die(str) ({ perror(str); int rc = __LINE__ % 100; rc += 101 * !rc; exit(rc); 0;})
@@ -19,6 +19,15 @@ struct lexem : std::string {
 	char first() const { return at(0); }
 	bool operator==(char c) const { return *this == string(1, c); }
 };
+
+typedef void (* char2fun_t)();
+char2fun_t &c2f(lexem x) {
+	static char2fun_t tab[256];
+	if (x.size() == 1) {
+		return tab[(unsigned char) x.first()];
+	}
+	return tab[0];
+}
 
 struct color_stack {
 	static stack<int> s;
@@ -47,7 +56,40 @@ stack<int> color_stack::s;
 #define PASTE(a,b) PASTE_HELPER(a,b)
 #define with_color color_stack PASTE(dummy_with_color, __LINE__) =
 
+bool is_kw(const lexem &lx) {
+	if (c2f('{')) {
+		// in rule/toplevel
+		return lx == "function";
+	}
+	// inside action
+	static vector<lexem> kws = {
+		"break",
+		"case",
+		"continue",
+		"default",
+		"delete",
+		"do",
+		"else",
+		"exit",
+		"for",
+		"if",
+		"in",
+		"next",
+		"nextfile",
+		"print",
+		"printf",
+		"return",
+		"switch",
+		"while",
+	};
+	return binary_search(kws.begin(), kws.end(), lx);
+}
+
 static void print(const lexem &lx) {
+	vector<color_stack> v;
+	if (is_kw(lx)) {
+		v.emplace_back(3);
+	}
 	color_stack::ensure_color();
 	printf("%s", lx.c_str());
 }
@@ -125,15 +167,6 @@ private:
 };
 lexer lx;
 
-typedef void (* char2fun_t)();
-char2fun_t &c2f(lexem x) {
-	static char2fun_t tab[256];
-	if (x.size() == 1) {
-		return tab[(unsigned char) x.first()];
-	}
-	return tab[0];
-}
-
 void run_escape();
 void run_regex();
 
@@ -178,21 +211,19 @@ void run_common(lexem nxt) {
 
 void run_action() {
 	c2f('{') = nullptr;
-	with_color 3;
-	{
-		with_color 4; // todo =10 with 16 colors
-		print('{');
-	}
+	with_color 4; // todo =10 with 16 colors
+	print('{');
+	with_color 7; // normal body
 	int lvl = 1;
 	while (lexem nxt = lx.next()) {
 		lvl += (nxt == '{') - (nxt == '}');
 		if (!lvl) {
-			with_color 4; // todo =10 with 16 colors
-			print('}');
 			break;
 		}
 		run_common(nxt);
 	}
+	with_color 4; // todo =10 with 16 colors
+	print('}');
 }
 
 void run() {
