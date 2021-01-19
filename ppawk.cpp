@@ -88,7 +88,7 @@ bool is_kw(const lexem &lx) {
 static void print(const lexem &lx) {
 	vector<color_stack> v;
 	if (is_kw(lx)) {
-		v.emplace_back(3);
+		v.emplace_back(4);
 	}
 	color_stack::ensure_color();
 	printf("%s", lx.c_str());
@@ -213,7 +213,7 @@ void run_action() {
 	c2f('{') = nullptr;
 	with_color 4; // todo =10 with 16 colors
 	print('{');
-	with_color 7; // normal body
+	with_color 3; // normal body
 	int lvl = 1;
 	while (lexem nxt = lx.next()) {
 		lvl += (nxt == '{') - (nxt == '}');
