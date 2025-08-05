@@ -57,6 +57,10 @@ stack<int> color_stack::s;
 #define with_color color_stack PASTE(dummy_with_color, __LINE__) =
 
 bool is_kw(const lexem &lx) {
+	if (!c2f('/')) {
+		// within regex
+		return false;
+	}
 	if (c2f('{')) {
 		// in rule/toplevel
 		return lx == "function";
@@ -269,6 +273,7 @@ void run_bracket() {
 void run_regex() {
 	with_color 5;
 	print('/');
+	c2f('/') = nullptr;
 	while (lexem nxt = lx.next()) {
 		if (nxt == '\\') {
 			run_escape();
@@ -283,6 +288,7 @@ void run_regex() {
 			break;
 		}
 	}
+	c2f('/') = run_regex;
 }
 
 void init_c2f() {
